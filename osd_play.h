@@ -15,6 +15,9 @@ private:
 protected:
   virtual void DoSet3DMode(int mode);
 public:
+  cControlTVOSDPlayPlugin(void);
+  virtual const char *Name(void) { return "osd_play"; }
+  virtual const char *Description(void) { return "Control Play Plugin OSD"; }
   };
 
-#endif //__LG_H
+#endif

@@ -7,17 +7,18 @@
 
 #include <vdr/plugin.h>
 #include <softhddevice_service.h>
-#include "3dcontrol.h"
 #include "osd_softhddevice.h"
 
 
 cControlTVOSDSoftHdDevicePlugin *osdsofthddevice = new cControlTVOSDSoftHdDevicePlugin;
 
+cControlTVOSDSoftHdDevicePlugin::cControlTVOSDSoftHdDevicePlugin(void)
+{
+  SetActive(Name(), 1);
+}
+
 void cControlTVOSDSoftHdDevicePlugin::DoSet3DMode(int mode)
 {
-  if (!config.osd_softhddevice)
-     return;
-  dsyslog("3dservice: osd_softhddevice mode:%i", mode);
   int SoftHdDevice3dMode;
   switch (mode) {
     case SideBySide:

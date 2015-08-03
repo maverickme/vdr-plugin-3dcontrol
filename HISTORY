@@ -11,5 +11,11 @@ VDR Plugin '3dcontrol' Revision History
 - Added new patches
 - Added main menu + setup menu
 - Added channel blacklist to override 3D autodetect
-  with optional channelmode (default :Auto 3D detection)
+  with optional channelmode (default: Auto 3D detection)
   modes = Disable 3D / Force 3D SbS / Force 3D TB
+
+2012-11-17: Version 0.0.3
+
+- Modul LG RS232 communication moved in an extra plugin
+- Added modul to run external cmd on changed 3D mode
+- Moved modulconfiguration from plugin into modules

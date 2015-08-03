@@ -15,6 +15,9 @@ private:
 protected:
   virtual void DoSet3DMode(int mode);
 public:
+  cControlTVOSDSoftHdDevicePlugin(void);
+  virtual const char *Name(void) { return "osd_softhddevice"; }
+  virtual const char *Description(void) { return "Control SoftHDDevice OSD"; }
   };
 
-#endif //__LG_H
+#endif

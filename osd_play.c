@@ -9,15 +9,16 @@
 #include <play_service.h>
 
 #include "osd_play.h"
-#include "3dcontrol.h"
 
 cControlTVOSDPlayPlugin *osdplay = new cControlTVOSDPlayPlugin;
 
+cControlTVOSDPlayPlugin::cControlTVOSDPlayPlugin(void)
+{
+  SetActive(Name(), 0);
+}
+
 void cControlTVOSDPlayPlugin::DoSet3DMode(int mode)
 {
-  if (!config.osd_play)
-     return;
-  dsyslog("3dservice: osd_play mode:%i", mode);
   int Play3dMode;
   switch (mode) {
     case SideBySide:

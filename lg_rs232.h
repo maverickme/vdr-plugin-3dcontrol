@@ -8,19 +8,18 @@
 #ifndef __LG_RS232_H
 #define __LG_RS232_H
 
-#define LGDEVICE                 "/dev/ttyUSB0"
+#include "control.h"
+
+// --- cControlTVLGrs232 ---------------------------------------------------------
 
 class cControlTVLGrs232 : public cControlTV {
 private:
-  int SendCommand(char cmd1, char cmd2, int value, int value2=0, int value3=0, int value4=0);
-  void InitSerial(const char *device);
-  void CloseSerial(void);
 protected:
-  virtual void DoInit(void);
-  virtual void DoStop(void);
   virtual void DoSet3DMode(int mode);
-//  virtual const char *GetCommandLineParameters(void) { return *CLiP; }
 public:
+  cControlTVLGrs232(void);
+  virtual const char *Name(void) { return "lg_rs232";}
+  virtual const char *Description(void) { return "Control LG TV via RS232 (need lgcontrol)"; }
   };
 
 #endif //__LG_RS232_H

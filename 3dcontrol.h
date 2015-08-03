@@ -13,9 +13,14 @@
 #include <map>
 #include <string>
 
+#ifdef IMAGEDETECTTEST
+#include <Magick++.h>
+#endif
 #include <vdr/status.h>
 
-static const char *VERSION        = "0.0.2";
+#define MAXMODULES               64
+
+static const char *VERSION        = "0.0.3";
 static const char *DESCRIPTION    = "3D control plugin";
 static const char *MAINMENUENTRY  = "3D Control";
 
@@ -33,7 +38,6 @@ public:
   c3DControlConfig(void);
 
   // --- Main Plugin ---
-  char *LGDevice;
   int hidemenu;
 
   std::map<const cChannel*, Auto3DMode> channel3DModes;
@@ -41,14 +45,7 @@ public:
   char *force3DsbsList;
   char *force3DtbList;
 
-  // --- lg_rs232 ---
-  int lg_rs232;
-
-  // --- osd_play ---
-  int osd_play;
-
-  // --- osd_softhddevice ---
-  int osd_softhddevice;
+  char *activemodules;
 
   void InitChannelSettings(void);
   Auto3DMode GetChannelMode(const cChannel* channel);
@@ -58,7 +55,6 @@ public:
   };
 
 extern c3DControlConfig config;
-
 
 // --- cMenuChannelItem3D ----------------------------------------------
 
@@ -90,7 +86,7 @@ public:
 
 class cMenuSetup3DControl : public cMenuSetupPage {
   private:
-    c3DControlConfig data;
+    int modactive[MAXMODULES];
   protected:
     virtual eOSState ProcessKey(eKeys Key);
     virtual void Store(void);
@@ -98,7 +94,7 @@ class cMenuSetup3DControl : public cMenuSetupPage {
     cMenuSetup3DControl(void);
 };
 
-// --- cMenuMainLG ---------------------------------------------------
+// --- cMenuMain3DControl ---------------------------------------------------
 
 class cMenuMain3DControl : public cOsdMenu {
 public:
@@ -112,13 +108,15 @@ public:
 class cMyStatusMonitor : public cStatus {
 private:
   char *stristr(const char *String, const char *Pattern);
+#ifdef IMAGEDETECTTEST
+  int Is3DContent(void);
+#endif
 protected:
   virtual void Replaying(const cControl *Control, const char *Name, const char *FileName, bool On);
   virtual void ChannelSwitch(const cDevice* Device, int ChannelNumber, bool LiveView);
   };
 
 // --- cPlugin3dcontrol ---------------------------------------------------
-
 
 class cPlugin3dcontrol : public cPlugin {
 private:
@@ -147,4 +145,3 @@ public:
   virtual cString SVDRPCommand(const char *Command, const char *Option, int &ReplyCode);
   };
 #endif
-

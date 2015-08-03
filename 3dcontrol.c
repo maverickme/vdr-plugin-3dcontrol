@@ -8,7 +8,6 @@
 
 #include <stdio.h>
 #include <ctype.h>
-#include <getopt.h>
 
 #include <vdr/config.h>
 #include <vdr/plugin.h>
@@ -18,6 +17,8 @@
 #include "control.h"
 
 #define CHNUMWIDTH  (numdigits(Channels.MaxNumber()) + 1)
+#define IMAGE_MAX_DIFF_SBS     1800
+#define IMAGE_MAX_DIFF_TB      5000
 
 cControlTV *control = new cControlTV();
 
@@ -27,14 +28,11 @@ c3DControlConfig config;
 
 c3DControlConfig::c3DControlConfig(void)
 {
-  LGDevice=NULL;
   hidemenu=1;
   no3DList=strdup("");
   force3DsbsList=strdup("");
   force3DtbList=strdup("");
-  lg_rs232=0;
-  osd_play=0;
-  osd_softhddevice=1;
+  activemodules=strdup("");
 }
 
 void c3DControlConfig::InitChannelSettings(void)
@@ -53,11 +51,6 @@ void c3DControlConfig::InitChannelSettings(void)
 
 Auto3DMode c3DControlConfig::GetChannelMode(const cChannel* channel)
 {
-/*  std::map<const cChannel*, Auto3DMode>::iterator i = config.channel3DModes.find(channel);
-  if (i != config.channel3DModes.end())
-     return i->second;
-  else
-     return Auto3D;*/
   return config.channel3DModes[channel];
 }
 
@@ -93,9 +86,7 @@ void c3DControlConfig::SaveConfig(void)
      p->SetupStore("no3DList",          config.no3DList);
      p->SetupStore("force3DsbsList",    config.force3DsbsList);
      p->SetupStore("force3DtbList",     config.force3DtbList);
-     p->SetupStore("lg_rs232",          config.lg_rs232);
-     p->SetupStore("osd_play",          config.osd_play);
-     p->SetupStore("osd_softhddevice",  config.osd_softhddevice);
+     p->SetupStore("activemodules",     config.activemodules);
      Setup.Save();
      }
 }
@@ -135,7 +126,6 @@ cMenuChannels3D::cMenuChannels3D(void)
 :cOsdMenu(tr("3D channels"), CHNUMWIDTH, 30)
 {
   config.InitChannelSettings();
-  // create a main channel group
   mainGroup.Parse(tr(":Main channels"));
   Set();
   SetHelp(tr("Button$Auto 3D"), tr("Button$Force 3D SbS"), tr("Button$Force 3D TB"), tr("Button$No Auto 3D"));
@@ -196,7 +186,6 @@ eOSState cMenuChannels3D::ProcessKey(eKeys Key)
       if (state == osUnknown) {
          switch (Key) {
            case kOk:
-//                config.SaveConfig();
                 state = osBack;
                 break;
            case kRed:
@@ -223,27 +212,43 @@ eOSState cMenuChannels3D::ProcessKey(eKeys Key)
 
 cMenuSetup3DControl::cMenuSetup3DControl(void)
 {
-//  data = config;
   int current = Current();
+  int idx;
   Clear();
   Add(new cMenuEditBoolItem(tr("Hide main menu entry"),          &config.hidemenu,               trVDR("no"),           trVDR("yes")));
-  Add(new cMenuEditBoolItem(tr("Control LG-TV via RS232"),       &config.lg_rs232,               trVDR("disable"),      trVDR("enable")));
-  Add(new cMenuEditBoolItem(tr("Control play plugin OSD mode"),  &config.osd_play,               trVDR("disable"),      trVDR("enable")));
-  Add(new cMenuEditBoolItem(tr("Control softhddevice OSD mode"), &config.osd_softhddevice,       trVDR("disable"),      trVDR("enable")));
   Add(new cOsdItem(tr("Channelmapping >>"), osUser1));
+
+  idx=0;
+  for (cControlTV *c = cControlTV::Controllers.First(); c; c = cControlTV::Controllers.Next(c)) {
+      modactive[idx]=c->Active();
+      if (c->Name() != NULL )
+         Add(new cMenuEditBoolItem(c->Description(), &modactive[idx], trVDR("no"), trVDR("yes")));
+      idx++;
+  }
+
   SetCurrent(Get(current));
   Display();
 }
 
 void cMenuSetup3DControl::Store(void)
 {
-//    config = data;
     config.SaveConfig();
 }
 
 eOSState cMenuSetup3DControl::ProcessKey(eKeys Key)
 {
+  int idx=0;
+  std::string modList;
   eOSState state = cOsdMenu::ProcessKey(Key);
+
+  for (cControlTV *c = cControlTV::Controllers.First(); c; c = cControlTV::Controllers.Next(c)) {
+      c->SetActive(c->Name(), modactive[idx]);
+      if (c->Active())
+         modList += std::string(modList.empty()?"":" ") + c->Name();
+      idx++;
+      }
+
+  config.activemodules = strdup(modList.c_str());
 
   if (state == osUser1 && Key == kOk)
      return AddSubMenu(new cMenuChannels3D());
@@ -334,6 +339,44 @@ char *cMyStatusMonitor::stristr(const char *String, const char *Pattern)
   return 0;
 }
 
+#ifdef IMAGEDETECTTEST
+int Is3DContent(void)
+{
+  int ImageSize;
+  int x=1024;
+  int y=768;
+  int rc=0;
+
+  Magick::Image image, image_l, image_r, image_t, image_b;
+
+  const char *Image = ( char * ) cDevice::PrimaryDevice()->GrabImage(ImageSize, false, 100, x, y);
+
+  Magick::Blob blob(Image, ImageSize);
+
+  image.read( blob );
+
+  image_l=image;
+  image_r=image;
+  image_t=image;
+  image_b=image;
+
+  image_b.crop( Magick::Geometry(0, 0, 0, y/2) );
+  image_r.crop( Magick::Geometry(0, 0, x/2, 0) );
+  image_t.crop( Magick::Geometry(0, y/2, 0, 0) );
+  image_l.crop( Magick::Geometry(x/2, 0, 0 ,0) );
+
+  image_l.compare(image_r);
+  image_t.compare(image_b);
+
+  if (image_l.meanErrorPerPixel() < IMAGE_MAX_DIFF_SBS )
+     rc=1; // SBS
+  else if (image_t.meanErrorPerPixel() < IMAGE_MAX_DIFF_TB )
+     rc=2; // TB
+
+  return rc;
+}
+#endif
+
 void cMyStatusMonitor::Replaying(const cControl *Control, const char *Name, const char *FileName, bool On)
 {
   if (On) {
@@ -394,32 +437,28 @@ cPlugin3dcontrol::~cPlugin3dcontrol()
 const char *cPlugin3dcontrol::CommandLineHelp(void)
 {
   // Return a string that describes all known command line options.
-  return "  -d DEV,   --device=DEV   set the device to use (default is )";
+  std::string CLiH;
+  CLiH=strdup("");
+  for (cControlTV *c = cControlTV::Controllers.First(); c; c = cControlTV::Controllers.Next(c)) {
+      if (c->CommandLineHelp()!=NULL)
+         CLiH += std::string(CLiH.empty()?"":"\n") + c->CommandLineHelp();
+      }
+  return   strdup(CLiH.c_str());
 }
 
 bool cPlugin3dcontrol::ProcessArgs(int argc, char *argv[])
 {
   // Implement command line argument processing here if applicable.
-  static struct option long_options[] = {
-       { "device",   required_argument, NULL, 'd' },
-       { NULL,       no_argument,       NULL,  0  }
-     };
-
-  int c;
-  while ((c = getopt_long(argc, argv, "d:", long_options, NULL)) != -1) {
-        switch (c) {
-          case 'd': config.LGDevice=optarg;
-                    break;
-          default:  return false;
-          }
-        }
-  return true;
+  return control->ProcessArgs(argc, argv);
 }
 
 bool cPlugin3dcontrol::Initialize(void)
 {
   // Initialize any background activities the plugin shall perform.
-  control->Init();
+  control->Init(config.activemodules);
+#ifdef IMAGEDETECTTEST
+  Magick::InitializeMagick(NULL);
+#endif
   return true;
 }
 
@@ -478,9 +517,7 @@ bool cPlugin3dcontrol::SetupParse(const char *Name, const char *Value)
   else if (!strcasecmp(Name, "no3DList"))         config.no3DList         = strdup(Value ? Value : "");
   else if (!strcasecmp(Name, "force3DsbsList"))   config.force3DsbsList   = strdup(Value ? Value : "");
   else if (!strcasecmp(Name, "force3DtbList"))    config.force3DtbList    = strdup(Value ? Value : "");
-  else if (!strcasecmp(Name, "lg_rs232"))         config.lg_rs232         = atoi(Value);
-  else if (!strcasecmp(Name, "osd_play"))         config.osd_play         = atoi(Value);
-  else if (!strcasecmp(Name, "osd_softhddevice")) config.osd_softhddevice = atoi(Value);
+  else if (!strcasecmp(Name, "activemodules"))    config.activemodules    = strdup(Value ? Value : "");
   else
      return false;
   return true;

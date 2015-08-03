@@ -11,6 +11,11 @@
 #
 PLUGIN = 3dcontrol
 
+WITH_LGRS232_CONTROL=1
+WITH_EXTERN_CMD_CONTROL=1
+WITH_PLAY_PLUGIN_OSD_CONTROL=1
+WITH_SOFTHDDEVICE_OSD_CONTROL=1
+
 ### The version number of this plugin (taken from the main source file):
 
 VERSION = $(shell grep 'static const char \*VERSION *=' $(PLUGIN).h | awk '{ print $$6 }' | sed -e 's/[";]//g')
@@ -22,11 +27,12 @@ CXXFLAGS ?= -g -O3 -Wall -Werror=overloaded-virtual -Wno-parentheses
 
 ### The directory environment:
 
-VDRDIR ?= /usr/include/vdr
-LIBDIR ?= .
+VDRDIR ?= ../../..
+LIBDIR ?= ../../lib
 TMPDIR ?= /tmp
 
 #SOFTHDDEVICE_PLUGIN_SOURCE=$(VDRDIR)/PLUGINS/src/softhddevice
+#LGCONTROL_PLUGIN_SOURCE=$(VDRDIR)/PLUGINS/src/lgcontrol
 #PLAY_PLUGIN_SOURCE=$(VDRDIR)/PLUGINS/src/play
 
 ### Make sure that necessary options are included:
@@ -48,24 +54,47 @@ PACKAGE = vdr-$(ARCHIVE)
 
 ### Includes and Defines (add further entries here):
 
-ifndef SOFTHDDEVICE_PLUGIN_SOURCE
-  SERVICE_INCLUDE += -I./include
-endif
-ifndef PLAY_PLUGIN_SOURCE
-  SERVICE_INCLUDE += -I./include
+ifdef IMAGE_DETECT_TEST
+DEFINES += -DHAVE_IMAGEMAGICK -DIMAGEDETECTTEST
+INCLUDES += $(shell pkg-config --cflags ImageMagick++)
+LIBS += $(shell pkg-config --libs ImageMagick++)
 endif
 
-#DEFINES += -DHAVE_IMAGEMAGICK
-#INCLUDES += $(shell pkg-config --cflags ImageMagick++)
-#LIBS += $(shell pkg-config --libs ImageMagick++)
-
-INCLUDES += -I$(VDRDIR)/include -I$(SERVICE_INCLUDE)
+INCLUDES += -I$(VDRDIR)/include
 
 DEFINES += -D_GNU_SOURCE -DPLUGIN_NAME_I18N='"$(PLUGIN)"'
 
+ifndef SOFTHDDEVICE_PLUGIN_SOURCE
+  INCLUDES += -I./include
+endif
+
+ifndef PLAY_PLUGIN_SOURCE
+  INCLUDES += -I./include
+endif
+
+ifndef LGCONTROL_PLUGIN_SOURCE
+  INCLUDES += -I./include
+endif
+
 ### The object files (add further files here):
 
-OBJS = control.o lg_rs232.o osd_play.o osd_softhddevice.o $(PLUGIN).o
+OBJS = control.o $(PLUGIN).o
+
+ifdef WITH_LGRS232_CONTROL
+OBJS += lg_rs232.o
+endif
+
+ifdef WITH_EXTERN_CMD_CONTROL
+OBJS += extern_cmd.o
+endif
+
+ifdef WITH_PLAY_PLUGIN_OSD_CONTROL
+OBJS += osd_play.o
+endif
+
+ifdef WITH_SOFTHDDEVICE_OSD_CONTROL
+OBJS += osd_softhddevice.o
+endif
 
 ### The main target:
 
@@ -126,5 +155,3 @@ dist: $(I18Npo) clean
 
 clean:
 	@-rm -f $(OBJS) $(DEPFILE) *.so *.tgz core* *~ $(PODIR)/*.mo $(PODIR)/*.pot
-
-

@@ -2,9 +2,9 @@ This is a "plugin" for the Video Disk Recorder (VDR).
 
 Written by:                  Patrick Gniza <pgniza@gmx.de>
 
-Project's homepage:          -
+Project's homepage:          http://www.vdr-portal.de/board17-developer/board21-vdr-plugins/115556-3dcontrol-plugin-zur-steuerung-der-3d-funktionen-von-ausgabe-pugins-und-3d-tv-s/
 
-Latest version available at: -
+Latest version available at: http://www.vdr-portal.de/board17-developer/board21-vdr-plugins/p1103852-3dcontrol-plugin-zur-steuerung-der-3d-funktionen-von-ausgabe-pugins-und-3d-tv-s/#post1103852
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -14,4 +14,15 @@ See the file COPYING for more information.
 
 Description:
 
+Steuerungs Module:
 
+ - OSD des SoftHDDevice Plugins (SideBySide und TopBottom)
+ - OSD des Play Plugins (SideBySide und TopBottom)
+ - LG 3D TV via RS232 (SideBySide, TopBottom, CheckBoard, FrameSequential, 2D->3D)
+ - Userdefinierte Aktionen via Script
+
+Folgende TV's unterstützen die automatische 3D Modus Umschaltung:
+
+ - LG 3D TV via RS232
+ - Samsung (nur UE40D7090 getestet)
+ - Phillips ??? (lt. Moorviper via VDR-Portal)
