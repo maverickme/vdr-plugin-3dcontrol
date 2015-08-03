@@ -11,13 +11,9 @@
 #
 PLUGIN = 3dcontrol
 
-#TV_LG_RS232_SUPPORT=1
-OSD_SOFTHDDEVICE_SUPPORT=1
-OSD_PLAY_PLUGIN_SUPPORT=1
-
 ### The version number of this plugin (taken from the main source file):
 
-VERSION = $(shell grep 'static const char \*VERSION *=' $(PLUGIN).c | awk '{ print $$6 }' | sed -e 's/[";]//g')
+VERSION = $(shell grep 'static const char \*VERSION *=' $(PLUGIN).h | awk '{ print $$6 }' | sed -e 's/[";]//g')
 
 ### The C++ compiler and options:
 
@@ -26,8 +22,8 @@ CXXFLAGS ?= -g -O3 -Wall -Werror=overloaded-virtual -Wno-parentheses
 
 ### The directory environment:
 
-VDRDIR ?= ../../..
-LIBDIR ?= ../../lib
+VDRDIR ?= /usr/include/vdr
+LIBDIR ?= .
 TMPDIR ?= /tmp
 
 #SOFTHDDEVICE_PLUGIN_SOURCE=$(VDRDIR)/PLUGINS/src/softhddevice
@@ -59,25 +55,17 @@ ifndef PLAY_PLUGIN_SOURCE
   SERVICE_INCLUDE += -I./include
 endif
 
+#DEFINES += -DHAVE_IMAGEMAGICK
+#INCLUDES += $(shell pkg-config --cflags ImageMagick++)
+#LIBS += $(shell pkg-config --libs ImageMagick++)
+
 INCLUDES += -I$(VDRDIR)/include -I$(SERVICE_INCLUDE)
 
 DEFINES += -D_GNU_SOURCE -DPLUGIN_NAME_I18N='"$(PLUGIN)"'
 
 ### The object files (add further files here):
 
-OBJS = control.o $(PLUGIN).o
-
-ifdef TV_LG_RS232_SUPPORT
-OBJS += lg_rs232.o
-endif
-
-ifdef OSD_SOFTHDDEVICE_SUPPORT
-OBJS += osd_softhddevice.o
-endif
-
-ifdef OSD_PLAY_PLUGIN_SUPPORT
-OBJS += osd_play.o
-endif
+OBJS = control.o lg_rs232.o osd_play.o osd_softhddevice.o $(PLUGIN).o
 
 ### The main target:
 
@@ -125,7 +113,7 @@ i18n: $(I18Nmsgs) $(I18Npot)
 ### Targets:
 
 libvdr-$(PLUGIN).so: $(OBJS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -shared $(OBJS) -o $@
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -shared $(OBJS) $(LIBS) -o $@
 	@cp --remove-destination $@ $(LIBDIR)/$@.$(APIVERSION)
 
 dist: $(I18Npo) clean
@@ -138,3 +126,5 @@ dist: $(I18Npo) clean
 
 clean:
 	@-rm -f $(OBJS) $(DEPFILE) *.so *.tgz core* *~ $(PODIR)/*.mo $(PODIR)/*.pot
+
+

@@ -1,6 +1,6 @@
-diff -ruN play-0.0.12-orig/play.cpp play-0.0.12/play.cpp
---- play-0.0.12-orig/play.cpp	2012-09-11 15:30:47.000000000 +0200
-+++ play-0.0.12/play.cpp	2012-11-01 12:28:50.913092344 +0100
+diff -ruN play-0.0.12.orig/play.cpp play-0.0.12/play.cpp
+--- play-0.0.12.orig/play.cpp	2012-09-11 15:30:47.000000000 +0200
++++ play-0.0.12/play.cpp	2012-11-05 11:33:18.000000000 +0100
 @@ -32,6 +32,7 @@
  #include "config.h"
  #endif
@@ -9,7 +9,7 @@ diff -ruN play-0.0.12-orig/play.cpp play-0.0.12/play.cpp
  extern "C"
  {
  #include "readdir.h"
-@@ -2288,6 +2291,9 @@
+@@ -2288,6 +2289,9 @@
      virtual cOsdObject *MainMenuAction(void);
      virtual cMenuSetupPage *SetupMenu(void);
      virtual bool SetupParse(const char *, const char *);
@@ -19,7 +19,7 @@ diff -ruN play-0.0.12-orig/play.cpp play-0.0.12/play.cpp
  };
  
  cMyPlugin::cMyPlugin(void)
-@@ -2411,6 +2417,56 @@
+@@ -2411,6 +2415,56 @@
  }
  
  /**
@@ -76,9 +76,9 @@ diff -ruN play-0.0.12-orig/play.cpp play-0.0.12/play.cpp
  **	Called for every plugin once during every cycle of VDR's main program
  **	loop.
  */
-diff -ruN play-0.0.12-orig/play_service.h play-0.0.12/play_service.h
---- play-0.0.12-orig/play_service.h	1970-01-01 01:00:00.000000000 +0100
-+++ play-0.0.12/play_service.h	2012-11-01 12:29:53.109088864 +0100
+diff -ruN play-0.0.12.orig/play_service.h play-0.0.12/play_service.h
+--- play-0.0.12.orig/play_service.h	1970-01-01 01:00:00.000000000 +0100
++++ play-0.0.12/play_service.h	2012-11-05 11:33:18.000000000 +0100
 @@ -0,0 +1,32 @@
 +///
 +///	@file play_service.h @brief Play service header file.
@@ -112,9 +112,9 @@ diff -ruN play-0.0.12-orig/play_service.h play-0.0.12/play_service.h
 +    int Mode;
 +} Play_Osd3DModeService_v1_0_t;
 +
-diff -ruN play-0.0.12-orig/video.c play-0.0.12/video.c
---- play-0.0.12-orig/video.c	2012-09-07 16:06:51.000000000 +0200
-+++ play-0.0.12/video.c	2012-11-01 12:21:09.917118126 +0100
+diff -ruN play-0.0.12.orig/video.c play-0.0.12/video.c
+--- play-0.0.12.orig/video.c	2012-09-07 16:06:51.000000000 +0200
++++ play-0.0.12/video.c	2012-11-05 11:43:25.000000000 +0100
 @@ -70,6 +70,8 @@
  static unsigned VideoWindowWidth;	///< video output window width
  static unsigned VideoWindowHeight;	///< video output window height
@@ -136,22 +136,7 @@ diff -ruN play-0.0.12-orig/video.c play-0.0.12/video.c
  ///
  ///	Draw a ARGB image.
  ///
-@@ -166,18 +173,37 @@
-     xcb_gcontext_t gc;
-     int sx;
-     int sy;
-+    int fs;
- 
-     if (!Connection) {
- 	Debug(3, "play: FIXME: must restore osd provider\n");
- 	return;
-     }
- 
-+    if (x + y < 1 && height == VideoWindowHeight && width == VideoWindowWidth)
-+       fs = 1;
-+    else
-+       fs = 0;
-+
+@@ -175,9 +182,22 @@
      gc = xcb_generate_id(Connection);
      xcb_create_gc(Connection, gc, VideoOsdWindow, 0, NULL);
  
@@ -177,7 +162,7 @@ diff -ruN play-0.0.12-orig/video.c play-0.0.12/video.c
  
      //	fast 32it versions
      if (xcb_image->bpp == 32) {
-@@ -193,7 +219,16 @@
+@@ -193,7 +213,16 @@
  			pixel |= argb[(width * sy + sx) * 4 + 1] << 8;
  			pixel |= argb[(width * sy + sx) * 4 + 2] << 16;
  		    }
@@ -195,7 +180,7 @@ diff -ruN play-0.0.12-orig/video.c play-0.0.12/video.c
  		}
  	    }
  	} else {
-@@ -213,13 +248,45 @@
+@@ -213,13 +242,33 @@
  		    pixel |= argb[(width * sy + sx) * 4 + 1] << 8;
  		    pixel |= argb[(width * sy + sx) * 4 + 2] << 16;
  		}
@@ -218,24 +203,12 @@ diff -ruN play-0.0.12-orig/video.c play-0.0.12/video.c
 -    xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, y, 0);
 +    switch (Osd3DMode) {
 +        case 1: // SBS
-+            if (fs) {
-+               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, y, 0);
-+               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x+VideoWindowWidth/2, y, 0);
-+            }
-+            else {
-+               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x/2, y, 0);
-+               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x/2+VideoWindowWidth/2, y, 0);
-+            }
++            xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image,  x/2, y, 0);
++            xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, (x/2)+(VideoWindowWidth/2), y, 0);
 +            break;
 +        case 2: // TB
-+            if (fs) {
-+               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, y, 0);
-+               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, y+VideoWindowHeight/2, 0);
-+            }
-+            else {
-+               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, y/2, 0);
-+               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, y/2+VideoWindowHeight/2, 0);
-+            }
++            xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x,  y/2, 0);
++            xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, (y/2)+(VideoWindowHeight/2), 0);
 +            break;
 +        default:
 +            xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, y, 0);
@@ -244,15 +217,14 @@ diff -ruN play-0.0.12-orig/video.c play-0.0.12/video.c
      xcb_image_destroy(xcb_image);
      xcb_free_gc(Connection, gc);
 diff -ruN play-0.0.12-orig/video.h play-0.0.12/video.h
---- play-0.0.12-orig/video.h	2012-09-07 16:06:51.000000000 +0200
-+++ play-0.0.12/video.h	2012-11-01 12:17:24.285130747 +0100
+--- play-0.0.12-orig/video.h    2012-09-07 16:06:51.000000000 +0200
++++ play-0.0.12/video.h 2012-11-01 12:17:24.285130747 +0100
 @@ -41,6 +41,9 @@
      /// Get player window id.
  extern int VideoGetPlayWindow(void);
- 
+
 +    /// Set Osd 3D Mode
 +extern void VideoSetOsd3DMode(int);
 +
      /// Draw an OSD ARGB image.
  extern void VideoDrawARGB(int, int, int, int, const uint8_t *);
- 

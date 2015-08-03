@@ -1,5 +1,5 @@
 /*
- * lg.c: lg rs232 remote control
+ * osd_play.c: play plugin remote control
  *
  * See the README file for copyright information and how to reach the author.
  *
@@ -9,11 +9,14 @@
 #include <play_service.h>
 
 #include "osd_play.h"
+#include "3dcontrol.h"
 
 cControlTVOSDPlayPlugin *osdplay = new cControlTVOSDPlayPlugin;
 
-void cControlTVOSDPlayPlugin::Set3DMode(int mode)
+void cControlTVOSDPlayPlugin::DoSet3DMode(int mode)
 {
+  if (!config.osd_play)
+     return;
   dsyslog("3dservice: osd_play mode:%i", mode);
   int Play3dMode;
   switch (mode) {
@@ -29,10 +32,10 @@ void cControlTVOSDPlayPlugin::Set3DMode(int mode)
          break;
   }
 
-
   cPlugin *p;
   Play_Osd3DModeService_v1_0_t r;
   r.Mode=Play3dMode;
   p = cPluginManager::GetPlugin("play");
-  p->Service(PLAY_OSD_3DMODE_SERVICE, &r);
+  if (p)
+     p->Service(PLAY_OSD_3DMODE_SERVICE, &r);
 }

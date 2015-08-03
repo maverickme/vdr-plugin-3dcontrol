@@ -4,8 +4,8 @@ cList<cControlTV> cControlTV::Controllers;
 
 cControlTV::cControlTV(void)
 {
-  Current3dMode=Disable;
   Controllers.Add(this);
+  Current3DMode=Disable;
 }
 
 cControlTV::~cControlTV()
@@ -13,20 +13,23 @@ cControlTV::~cControlTV()
   Controllers.Del(this, false);
 }
 
-void cControlTV::MsgSet3DMode(int mode)
+void cControlTV::Set3DMode(int mode)
 {
-  for (cControlTV *c = Controllers.First(); c; c = Controllers.Next(c))
-      c->Set3DMode(mode);
+  if (GetCurrent3DMode()!=mode) {
+     for (cControlTV *c = Controllers.First(); c; c = Controllers.Next(c))
+         c->DoSet3DMode(mode);
+     SetCurrent3DMode(mode);
+  }
 }
 
-void cControlTV::MsgInit(void)
+void cControlTV::Init(void)
 {
   for (cControlTV *c = Controllers.First(); c; c = Controllers.Next(c))
-      c->Init();
+      c->DoInit();
 }
 
-void cControlTV::MsgStop(void)
+void cControlTV::Stop(void)
 {
   for (cControlTV *c = Controllers.First(); c; c = Controllers.Next(c))
-      c->Stop();
+      c->DoStop();
 }

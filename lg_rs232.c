@@ -1,5 +1,5 @@
 /*
- * lg.c: lg rs232 remote control
+ * lg_rs232.c: lg rs232 remote control
  *
  * See the README file for copyright information and how to reach the author.
  *
@@ -15,9 +15,13 @@
 
 #include <vdr/tools.h>
 #include "control.h"
+#include "3dcontrol.h"
 #include "lg_rs232.h"
 
 #define TIMEOUT                  1.0
+#define READ_STATUS              0xFF
+
+#define CONVERTED_2D_3D_DEPTH    14
 
 cControlTVLGrs232 *lgrs232 = new cControlTVLGrs232;
 
@@ -29,6 +33,7 @@ void cControlTVLGrs232::InitSerial(const char *device)
 {
   ssize_t r = 0;
   if (fd != -1) return;
+  dsyslog("3dservice: lg_rs232 open: %s\n", device);
 
   fd = open(device, O_RDWR | O_NOCTTY | O_NONBLOCK);
   if (fd < 0) {
@@ -57,7 +62,6 @@ void cControlTVLGrs232::CloseSerial(void)
 {
   if (fd != -1) close(fd);
 }
-
 
 /*
  * Send command to LG TV
@@ -137,10 +141,28 @@ int cControlTVLGrs232::SendCommand(char cmd1, char cmd2, int value, int value2, 
   }
 }
 
-void cControlTVLGrs232::Set3DMode(int mode)
+void cControlTVLGrs232::DoInit(void)
 {
+  if (!config.lg_rs232)
+     return;
+  if (config.LGDevice != NULL)
+      InitSerial(config.LGDevice);
+     else
+      InitSerial(LGDEVICE);
+}
+
+void cControlTVLGrs232::DoStop(void)
+{
+  if (!config.lg_rs232)
+     return;
+  CloseSerial();
+}
+
+void cControlTVLGrs232::DoSet3DMode(int mode)
+{
+  if (!config.lg_rs232)
+     return;
   dsyslog("3dservice: lg_rs232 mode:%i", mode);
-  InitSerial("/dev/ttyUSB0");
   switch (mode) {
     case Disable:
          SendCommand('x', 't', 1, 1, 1);
@@ -167,5 +189,5 @@ void cControlTVLGrs232::Set3DMode(int mode)
          SendCommand('x', 't', 1, 1, 1);
          break;
   }
-  CloseSerial();
 }
+

@@ -1,5 +1,5 @@
 /*
- * lg.h: lg rs232 remote control
+ * lg_rs232.h: lg rs232 remote control
  *
  * See the README file for copyright information and how to reach the author.
  *
@@ -8,15 +8,7 @@
 #ifndef __LG_RS232_H
 #define __LG_RS232_H
 
-#define READ_STATUS              0xFF
-
-#define LGMINVOL                 0
-#define LGMAXVOL                 64
-
-#define LGMINBACKLIGTH           0
-#define LGMAXBACKLIGTH           64
-
-#define CONVERTED_2D_3D_DEPTH    14
+#define LGDEVICE                 "/dev/ttyUSB0"
 
 class cControlTVLGrs232 : public cControlTV {
 private:
@@ -24,7 +16,10 @@ private:
   void InitSerial(const char *device);
   void CloseSerial(void);
 protected:
-  virtual void Set3DMode(int mode);
+  virtual void DoInit(void);
+  virtual void DoStop(void);
+  virtual void DoSet3DMode(int mode);
+//  virtual const char *GetCommandLineParameters(void) { return *CLiP; }
 public:
   };
 
