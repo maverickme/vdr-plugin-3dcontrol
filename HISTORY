@@ -16,6 +16,20 @@ VDR Plugin '3dcontrol' Revision History
 
 2012-11-17: Version 0.0.3
 
+- Bugfixes
 - Modul LG RS232 communication moved in an extra plugin
 - Added modul to run external cmd on changed 3D mode
 - Moved modulconfiguration from plugin into modules
+
+2012-11-17: Version 0.0.4
+
+- Bugfixes
+- Update new lgcontrol header file (version 0.0.4)
+
+2013-03-11: Version 0.0.5
+
+- Updated Makefile for vdr-1.7.40
+
+2013-04-26 Version 0.0.6
+
+- Bugfix: dont switch 3D mode while retuning current channel

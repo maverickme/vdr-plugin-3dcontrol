@@ -125,7 +125,6 @@ int cMenuChannelItem3D::Compare(const cListObject &ListObject) const
 cMenuChannels3D::cMenuChannels3D(void)
 :cOsdMenu(tr("3D channels"), CHNUMWIDTH, 30)
 {
-  config.InitChannelSettings();
   mainGroup.Parse(tr(":Main channels"));
   Set();
   SetHelp(tr("Button$Auto 3D"), tr("Button$Force 3D SbS"), tr("Button$Force 3D TB"), tr("Button$No Auto 3D"));
@@ -397,6 +396,12 @@ void cMyStatusMonitor::Replaying(const cControl *Control, const char *Name, cons
 
 void cMyStatusMonitor::ChannelSwitch(const cDevice* Device, int ChannelNumber, bool LiveView)
 {
+  if (lastchannel == cDevice::CurrentChannel()) {
+     return;
+  }
+
+  lastchannel = cDevice::CurrentChannel();
+
   cChannel *Channel = Channels.GetByNumber(cDevice::CurrentChannel());
   if (LiveView && ChannelNumber > 0) {
      switch (config.GetChannelMode(Channel)) {
@@ -414,10 +419,11 @@ void cMyStatusMonitor::ChannelSwitch(const cDevice* Device, int ChannelNumber, b
                control->Set3DMode(SideBySide);
                return;
                }
+            else
+               control->Set3DMode(Disable);
             break;
        }
      }
-  control->Set3DMode(Disable);
 }
 
 cPlugin3dcontrol::cPlugin3dcontrol(void)
@@ -466,6 +472,7 @@ bool cPlugin3dcontrol::Start(void)
 {
   // Start any background activities the plugin shall perform.
   statusMonitor=new cMyStatusMonitor;
+  config.InitChannelSettings();
   return true;
 }
 
