@@ -1,0 +1,258 @@
+diff -ruN play-0.0.12-orig/play.cpp play-0.0.12/play.cpp
+--- play-0.0.12-orig/play.cpp	2012-09-11 15:30:47.000000000 +0200
++++ play-0.0.12/play.cpp	2012-11-01 12:28:50.913092344 +0100
+@@ -32,6 +32,7 @@
+ #include "config.h"
+ #endif
+ 
++#include "play_service.h"
+ extern "C"
+ {
+ #include "readdir.h"
+@@ -2288,6 +2291,9 @@
+     virtual cOsdObject *MainMenuAction(void);
+     virtual cMenuSetupPage *SetupMenu(void);
+     virtual bool SetupParse(const char *, const char *);
++    virtual bool Service(const char *, void * = NULL);
++    virtual const char **SVDRPHelpPages(void);
++    virtual cString SVDRPCommand(const char *Command, const char *Option, int &ReplyCode);
+ };
+ 
+ cMyPlugin::cMyPlugin(void)
+@@ -2411,6 +2417,56 @@
+ }
+ 
+ /**
++**	Receive requests or messages.
++**
++**	@param id	unique identification string that identifies the
++**			service protocol
++**	@param data	custom data structure
++*/
++bool cMyPlugin::Service(const char *id, void *data)
++{
++    if (strcmp(id, PLAY_OSD_3DMODE_SERVICE) == 0) {
++       VideoSetOsd3DMode(0);
++       Play_Osd3DModeService_v1_0_t *r =
++           (Play_Osd3DModeService_v1_0_t *) data;
++       VideoSetOsd3DMode(r->Mode);
++       return true;
++    }
++    return false;
++}
++
++const char **cMyPlugin::SVDRPHelpPages(void)
++{
++  static const char *HelpPages[] = {
++    "3DOF\n"
++    "    TURN OFF 3D",
++    "3DTB\n"
++    "    TURN ON 3D TB",
++    "3DSB\n"
++    "    TURN ON 3D SBS",
++    NULL
++    };
++  return HelpPages;
++}
++
++cString cMyPlugin::SVDRPCommand(const char *Command, const char *Option, int &ReplyCode)
++{
++    if (!strcasecmp(Command, "3DOF")) {
++        VideoSetOsd3DMode(0);
++        return "3d off";
++    }
++    if (!strcasecmp(Command, "3DSB")) {
++        VideoSetOsd3DMode(1);
++        return "3d sbs";
++    }
++    if (!strcasecmp(Command, "3DTB")) {
++        VideoSetOsd3DMode(2);
++        return "3d tb";
++    }
++    return NULL;
++}
++
++/**
+ **	Called for every plugin once during every cycle of VDR's main program
+ **	loop.
+ */
+diff -ruN play-0.0.12-orig/play_service.h play-0.0.12/play_service.h
+--- play-0.0.12-orig/play_service.h	1970-01-01 01:00:00.000000000 +0100
++++ play-0.0.12/play_service.h	2012-11-01 12:29:53.109088864 +0100
+@@ -0,0 +1,32 @@
++///
++///	@file play_service.h @brief Play service header file.
++///
++///	Copyright (c) 2012 by durchflieger.  All Rights Reserved.
++///
++///	Contributor(s):
++///
++///	License: AGPLv3
++///
++///	This program is free software: you can redistribute it and/or modify
++///	it under the terms of the GNU Affero General Public License as
++///	published by the Free Software Foundation, either version 3 of the
++///	License.
++///
++///	This program is distributed in the hope that it will be useful,
++///	but WITHOUT ANY WARRANTY; without even the implied warranty of
++///	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++///	GNU Affero General Public License for more details.
++///
++///	$Id$
++//////////////////////////////////////////////////////////////////////////////
++
++#pragma once
++
++#define PLAY_OSD_3DMODE_SERVICE	"Play-Osd3DModeService-v1.0"
++
++
++typedef struct
++{
++    int Mode;
++} Play_Osd3DModeService_v1_0_t;
++
+diff -ruN play-0.0.12-orig/video.c play-0.0.12/video.c
+--- play-0.0.12-orig/video.c	2012-09-07 16:06:51.000000000 +0200
++++ play-0.0.12/video.c	2012-11-01 12:21:09.917118126 +0100
+@@ -70,6 +70,8 @@
+ static unsigned VideoWindowWidth;	///< video output window width
+ static unsigned VideoWindowHeight;	///< video output window height
+ 
++int Osd3DMode=0;
++
+ ///
+ ///	Create X11 window.
+ ///
+@@ -151,6 +153,11 @@
+     return window;
+ }
+ 
++void VideoSetOsd3DMode(int Mode)
++{
++   Osd3DMode=Mode;
++}
++
+ ///
+ ///	Draw a ARGB image.
+ ///
+@@ -166,18 +173,37 @@
+     xcb_gcontext_t gc;
+     int sx;
+     int sy;
++    int fs;
+ 
+     if (!Connection) {
+ 	Debug(3, "play: FIXME: must restore osd provider\n");
+ 	return;
+     }
+ 
++    if (x + y < 1 && height == VideoWindowHeight && width == VideoWindowWidth)
++       fs = 1;
++    else
++       fs = 0;
++
+     gc = xcb_generate_id(Connection);
+     xcb_create_gc(Connection, gc, VideoOsdWindow, 0, NULL);
+ 
+-    xcb_image =
+-	xcb_image_create_native(Connection, width, height,
+-	XCB_IMAGE_FORMAT_Z_PIXMAP, VideoScreen->root_depth, NULL, 0L, NULL);
++    switch (Osd3DMode) {
++        case 1:   // SBS
++            xcb_image =
++		xcb_image_create_native(Connection, width/2, height,
++		XCB_IMAGE_FORMAT_Z_PIXMAP, VideoScreen->root_depth, NULL, 0L, NULL);
++            break;
++        case 2:   // TB
++            xcb_image =
++		xcb_image_create_native(Connection, width, height/2,
++		XCB_IMAGE_FORMAT_Z_PIXMAP, VideoScreen->root_depth, NULL, 0L, NULL);
++            break;
++        default:
++            xcb_image =
++		xcb_image_create_native(Connection, width, height,
++		XCB_IMAGE_FORMAT_Z_PIXMAP, VideoScreen->root_depth, NULL, 0L, NULL);
++    }
+ 
+     //	fast 32it versions
+     if (xcb_image->bpp == 32) {
+@@ -193,7 +219,16 @@
+ 			pixel |= argb[(width * sy + sx) * 4 + 1] << 8;
+ 			pixel |= argb[(width * sy + sx) * 4 + 2] << 16;
+ 		    }
+-		    xcb_image_put_pixel_Z32L(xcb_image, sx, sy, pixel);
++                    switch (Osd3DMode) {
++                        case 1: // SBS
++		            xcb_image_put_pixel_Z32L(xcb_image, sx/2, sy, pixel);
++                            break;
++                        case 2:  // TB
++			    xcb_image_put_pixel_Z32L(xcb_image, sx, sy/2, pixel);
++                            break;
++                        default:
++			    xcb_image_put_pixel_Z32L(xcb_image, sx, sy, pixel);
++                    }
+ 		}
+ 	    }
+ 	} else {
+@@ -213,13 +248,45 @@
+ 		    pixel |= argb[(width * sy + sx) * 4 + 1] << 8;
+ 		    pixel |= argb[(width * sy + sx) * 4 + 2] << 16;
+ 		}
+-		xcb_image_put_pixel(xcb_image, sx, sy, pixel);
++                switch (Osd3DMode) {
++                    case 1: // SBS
++		        xcb_image_put_pixel(xcb_image, sx/2, sy, pixel);
++                        break;
++                    case 2:  // TB
++		        xcb_image_put_pixel(xcb_image, sx, sy/2, pixel);
++                        break;
++                    default:
++		        xcb_image_put_pixel(xcb_image, sx, sy, pixel);
++                }
+ 	    }
+ 	}
+     }
+ 
+     // render xcb_image to color data pixmap
+-    xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, y, 0);
++    switch (Osd3DMode) {
++        case 1: // SBS
++            if (fs) {
++               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, y, 0);
++               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x+VideoWindowWidth/2, y, 0);
++            }
++            else {
++               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x/2, y, 0);
++               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x/2+VideoWindowWidth/2, y, 0);
++            }
++            break;
++        case 2: // TB
++            if (fs) {
++               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, y, 0);
++               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, y+VideoWindowHeight/2, 0);
++            }
++            else {
++               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, y/2, 0);
++               xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, y/2+VideoWindowHeight/2, 0);
++            }
++            break;
++        default:
++            xcb_image_put(Connection, VideoOsdWindow, gc, xcb_image, x, y, 0);
++    }
+     // release xcb_image
+     xcb_image_destroy(xcb_image);
+     xcb_free_gc(Connection, gc);
+diff -ruN play-0.0.12-orig/video.h play-0.0.12/video.h
+--- play-0.0.12-orig/video.h	2012-09-07 16:06:51.000000000 +0200
++++ play-0.0.12/video.h	2012-11-01 12:17:24.285130747 +0100
+@@ -41,6 +41,9 @@
+     /// Get player window id.
+ extern int VideoGetPlayWindow(void);
+ 
++    /// Set Osd 3D Mode
++extern void VideoSetOsd3DMode(int);
++
+     /// Draw an OSD ARGB image.
+ extern void VideoDrawARGB(int, int, int, int, const uint8_t *);
+ 
