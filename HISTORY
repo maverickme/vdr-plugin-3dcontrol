@@ -33,3 +33,9 @@ VDR Plugin '3dcontrol' Revision History
 2013-04-26 Version 0.0.6
 
 - Bugfix: dont switch 3D mode while retuning current channel
+
+2015-09-15 Version 0.0.7
+
+- Add: 3DReplaying patch
+- Compile fix: for VDR 3.2.1
+- Removed softhddevice patches

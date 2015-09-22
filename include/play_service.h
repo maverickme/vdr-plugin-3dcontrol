@@ -17,16 +17,14 @@
 ///	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ///	GNU Affero General Public License for more details.
 ///
-///	$Id$
+///	$Id: d903996c670a05e72a189a0a5de30724eb2ea903 $
 //////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
 #define PLAY_OSD_3DMODE_SERVICE	"Play-Osd3DModeService-v1.0"
 
-
 typedef struct
 {
     int Mode;
 } Play_Osd3DModeService_v1_0_t;
-

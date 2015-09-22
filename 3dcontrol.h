@@ -20,7 +20,7 @@
 
 #define MAXMODULES               64
 
-static const char *VERSION        = "0.0.6";
+static const char *VERSION        = "0.0.7";
 static const char *DESCRIPTION    = "3D control plugin";
 static const char *MAINMENUENTRY  = "3D Control";
 

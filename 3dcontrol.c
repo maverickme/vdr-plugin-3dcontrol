@@ -12,11 +12,18 @@
 #include <vdr/config.h>
 #include <vdr/plugin.h>
 #include <vdr/menuitems.h>
+#include <vdr/menu.h>
+#include <vdr/recording.h>
 
 #include "3dcontrol.h"
 #include "control.h"
 
+#if APIVERSNUM < 20301
 #define CHNUMWIDTH  (numdigits(Channels.MaxNumber()) + 1)
+#else
+LOCK_CHANNELS_READ;
+#define CHNUMWIDTH  (numdigits(Channels->MaxNumber()) + 1)
+#endif
 #define IMAGE_MAX_DIFF_SBS     1800
 #define IMAGE_MAX_DIFF_TB      5000
 
@@ -37,7 +44,12 @@ c3DControlConfig::c3DControlConfig(void)
 
 void c3DControlConfig::InitChannelSettings(void)
 {
+#if APIVERSNUM < 20301
   for (const cChannel *ch = Channels.First(); ch; ch = Channels.Next(ch)) {
+#else
+  LOCK_CHANNELS_READ;
+  for (const cChannel *ch = Channels->First(); ch; ch = Channels->Next(ch)) {
+#endif
       if (strstr(config.no3DList,ch->GetChannelID().ToString())!=NULL)
          config.channel3DModes[ch] = Disable3D;
       else if (strstr(config.force3DsbsList,ch->GetChannelID().ToString())!=NULL)
@@ -61,7 +73,12 @@ void c3DControlConfig::SetChannelMode(const cChannel* channel, Auto3DMode mode, 
      std::string chList;
      std::string chListsbs;
      std::string chListtb;
+#if APIVERSNUM < 20301
      for (const cChannel *ch = Channels.First(); ch; ch = Channels.Next(ch)) {
+#else
+     LOCK_CHANNELS_READ;
+     for (const cChannel *ch = Channels->First(); ch; ch = Channels->Next(ch)) {
+#endif
          if (!ch->GroupSep()) {
             if (GetChannelMode(ch) == Disable3D)
                 chList += std::string(chList.empty()?"":" ") + *ch->GetChannelID().ToString();
@@ -125,6 +142,7 @@ int cMenuChannelItem3D::Compare(const cListObject &ListObject) const
 cMenuChannels3D::cMenuChannels3D(void)
 :cOsdMenu(tr("3D channels"), CHNUMWIDTH, 30)
 {
+  config.InitChannelSettings();
   mainGroup.Parse(tr(":Main channels"));
   Set();
   SetHelp(tr("Button$Auto 3D"), tr("Button$Force 3D SbS"), tr("Button$Force 3D TB"), tr("Button$No Auto 3D"));
@@ -134,9 +152,18 @@ void cMenuChannels3D::Set(void)
 {
   const cChannel *currentChannel = GetChannel(Current());
   Clear();
+#if APIVERSNUM < 20301
   if (Channels.First() && !Channels.First()->GroupSep()) // add a main group if there's none
+#else
+  LOCK_CHANNELS_READ;
+  if (Channels->First() && !Channels->First()->GroupSep()) // add a main group if there's none
+#endif
     Add(new cMenuChannelItem3D(&mainGroup));
+#if APIVERSNUM < 20301
   for (const cChannel *channel = Channels.First(); channel; channel = Channels.Next(channel))
+#else
+  for (const cChannel *channel = Channels->First(); channel; channel = Channels->Next(channel))
+#endif
     if ( *channel->Name())
       Add(new cMenuChannelItem3D(channel), channel == currentChannel);
 }
@@ -378,20 +405,57 @@ int Is3DContent(void)
 
 void cMyStatusMonitor::Replaying(const cControl *Control, const char *Name, const char *FileName, bool On)
 {
-  if (On) {
-     if (stristr(FileName, "3D")) {
-        if (stristr(FileName, "OU"))
-           control->Set3DMode(TopBottom);
-        else if (stristr(FileName, "TB"))
-           control->Set3DMode(TopBottom);
-        else
-           control->Set3DMode(SideBySide);
+  int NewMode = Disable; // default 
+  if (On)
+  {
+    if (stristr(FileName, "3D")) {
+      if (stristr(FileName, "OU")) {
+        //control->Set3DMode(TopBottom);
+        NewMode = TopBottom;
         }
-     else
-        control->Set3DMode(Disable);
-     }
-  else
-     control->Set3DMode(Disable);
+      else {
+        if (stristr(FileName, "TB")) 
+          NewMode = TopBottom;
+        else 
+          NewMode = SideBySide;
+        }
+      }
+    else{
+      // No 3D in recording name, check recording info for ChannelID
+      if (cReplayControl::NowReplaying()) {
+#if APIVERSNUM < 20301
+        const cRecording *Recording = Recordings.GetByName(cReplayControl::NowReplaying());
+#else
+        LOCK_RECORDINGS_READ
+        const cRecording *Recording = Recordings->GetByName(cReplayControl::NowReplaying());
+#endif
+        if (Recording) { 
+          const cRecordingInfo *Info = Recording->Info();
+          if (Info) {
+#if APIVERSNUM < 20301
+            cChannel *Channel = Channels.GetByChannelID(Info->ChannelID());
+#else
+            LOCK_CHANNELS_READ
+            const cChannel *Channel = Channels->GetByChannelID(Info->ChannelID());
+#endif
+            if (Channel && (Channel->Number() > 0)) {
+              switch (config.GetChannelMode(Channel)) {
+                case Disable3D: break;
+                case force3DSbS: NewMode = SideBySide; break;
+                case force3DTB:  NewMode = TopBottom;  break;
+                default:
+                  if (stristr(Channel->Name(), "3D")) 
+                    NewMode = SideBySide;
+                 break;
+                }
+              }
+            }
+          }
+        }
+      }
+  }
+  // Now apply new mode to 3dcontrol
+  control->Set3DMode(NewMode);
 }
 
 void cMyStatusMonitor::ChannelSwitch(const cDevice* Device, int ChannelNumber, bool LiveView)
@@ -402,7 +466,12 @@ void cMyStatusMonitor::ChannelSwitch(const cDevice* Device, int ChannelNumber, b
 
   lastchannel = cDevice::CurrentChannel();
 
+#if APIVERSNUM < 20301
   cChannel *Channel = Channels.GetByNumber(cDevice::CurrentChannel());
+#else
+  LOCK_CHANNELS_READ;
+  const cChannel *Channel = Channels->GetByNumber(cDevice::CurrentChannel());
+#endif
   if (LiveView && ChannelNumber > 0) {
      switch (config.GetChannelMode(Channel)) {
        case Disable3D:
@@ -472,7 +541,6 @@ bool cPlugin3dcontrol::Start(void)
 {
   // Start any background activities the plugin shall perform.
   statusMonitor=new cMyStatusMonitor;
-  config.InitChannelSettings();
   return true;
 }
 
